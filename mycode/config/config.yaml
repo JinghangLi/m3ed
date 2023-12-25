@@ -7,7 +7,7 @@ files:
   - file_name: "car_urban_day_city_hall_data.h5"
     save_name: "car_urban_day_city_hall_1.h5"
     start_time: 0026
-    end_time: 0030
+    stop_time: 0030
 
   # - file_name: "car_urban_day_city_hall_data.h5"
   #   save_name: "car_urban_day_city_hall_2"
