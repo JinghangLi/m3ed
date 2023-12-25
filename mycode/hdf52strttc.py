@@ -4,6 +4,7 @@ import h5py
 from PIL import Image
 import numpy as np
 import os
+import shutil
 
 
 def load_config(yaml_file):
@@ -77,20 +78,27 @@ def main(args):
     
     if not os.path.exists(config['save_root']):
         os.makedirs(config['save_root'], exist_ok=True)
+    
+    # Main Save process
     for file in config['files']:
         ts_start_ms = convert_to_milliseconds(file['start_time'])
         ts_stop_ms = convert_to_milliseconds(file['stop_time'])
         
         originPath_hf5 = os.path.join(config['hdf5_root'], file['file_name'])
-        outPath_hf5 = os.path.join(config['save_root'], file['save_name'])
         
-        print(f"Processing {originPath_hf5}, time: {file['start_time']}--{file['stop_time']}, save to {outPath_hf5}")
+        save_dir = os.path.join(config['save_root'], file['save_name'])
         
-        if os.path.exists(outPath_hf5):
-            os.remove(outPath_hf5)
+        if os.path.exists(save_dir):
+            shutil.rmtree(save_dir)
+
+        os.makedirs(save_dir, exist_ok=False)
+        
+        saveHf5_path = f"{save_dir}/{file['save_name']}.h5"
+        
+        print(f"Processing {originPath_hf5}, time: {file['start_time']}--{file['stop_time']}, save to {saveHf5_path}")
         
         with h5py.File(originPath_hf5, 'r') as origin_hf5:
-            with h5py.File(outPath_hf5, 'w') as new_hf5:
+            with h5py.File(saveHf5_path, 'w') as new_hf5:
                 
                 new_hf5.attrs['raw_file_name'] = file['file_name']
                 new_hf5.attrs['start_time_ms'] = ts_start_ms
@@ -109,6 +117,14 @@ def main(args):
                                         start_idx=ovc_start_idx, stop_idx=ovc_stop_idx)
                 new_hf5 = copy_dataset_by_idxs(origin_hf5, new_hf5, '/ovc/left/data',
                                         start_idx=ovc_start_idx, stop_idx=ovc_stop_idx, copy_chunks=True)
+                
+                # Save images for matlab label bbox, Image name is 00001.png, 00002.png, ..
+                pic_save_dir = f"{save_dir}/images"
+                os.makedirs(pic_save_dir, exist_ok=True)
+                
+                for i in range(0, new_hf5['/ovc/left/data'].shape[0]-1):
+                    image = Image.fromarray(new_hf5['/ovc/left/data'][i, ...].squeeze(axis=-1))
+                    image.save(os.path.join(pic_save_dir, f"{i:05d}.png"))
                 
                 # Prophesee Left
                 # Find the index in the event stream that correlates with the image time
